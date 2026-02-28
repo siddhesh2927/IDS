@@ -14,13 +14,14 @@ from ml_models import MLModels
 from database import Database
 from dataset_manager import DatasetManager
 from realtime_processor import RealTimeProcessor
+from network_capture import NetworkCapture
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configuration
-app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 300 * 1024 * 1024  # 300MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MODEL_FOLDER'] = 'models'
 
@@ -34,6 +35,7 @@ preprocessor = DataPreprocessor()
 ml_models = MLModels()
 dataset_manager = DatasetManager(app.config['UPLOAD_FOLDER'])
 realtime_processor = RealTimeProcessor(ml_models, preprocessor, socketio)
+network_capture = NetworkCapture(socketio, ml_models, preprocessor)
 
 @app.route('/')
 def index():
@@ -340,6 +342,65 @@ def handle_get_status():
     """Handle status request"""
     status = realtime_processor.get_streaming_status()
     emit('status_update', status)
+
+# Network Capture Endpoints
+@app.route('/network/interfaces', methods=['GET'])
+def get_network_interfaces():
+    """Get available network interfaces"""
+    try:
+        interfaces = network_capture.get_network_interfaces()
+        return jsonify({"interfaces": interfaces})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/network/capture/start', methods=['POST'])
+def start_network_capture():
+    """Start network packet capture"""
+    try:
+        data = request.get_json()
+        config = data.get('config', {})
+        
+        result = network_capture.start_capture(config)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/network/capture/stop', methods=['POST'])
+def stop_network_capture():
+    """Stop network packet capture"""
+    try:
+        result = network_capture.stop_capture()
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/network/capture/status', methods=['GET'])
+def get_capture_status():
+    """Get network capture status"""
+    try:
+        status = network_capture.get_capture_status()
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/network/capture/logfile', methods=['POST'])
+def set_capture_log_file():
+    """Set log file for capture mode"""
+    try:
+        data = request.get_json()
+        log_file = data.get('log_file')
+        
+        if not log_file:
+            return jsonify({"error": "Log file path required"}), 400
+        
+        result = network_capture.set_log_file(log_file)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

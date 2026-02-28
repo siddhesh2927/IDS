@@ -9,7 +9,8 @@ import {
   SettingOutlined,
   SafetyOutlined,
   PlayCircleOutlined,
-  DatabaseOutlined
+  DatabaseOutlined,
+  GlobalOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -54,6 +55,11 @@ const Sidebar = () => {
       key: '/realtime',
       icon: <PlayCircleOutlined />,
       label: 'Real-time Monitor',
+    },
+    {
+      key: '/capture',
+      icon: <GlobalOutlined />,
+      label: 'Network Capture',
     },
     {
       key: '/history',

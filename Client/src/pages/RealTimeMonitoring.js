@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Switch, Progress, Alert, Statistic, Row, Col, Table, Tag, Space, message, Input, Modal, List, Select } from 'antd';
+import { Card, Button, Progress, Alert, Statistic, Row, Col, Table, Tag, Space, message, Input, Modal, List } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, SecurityScanOutlined, BellOutlined, WarningOutlined, SettingOutlined } from '@ant-design/icons';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-
-const { Option } = Select;
 
 const RealTimeMonitoring = () => {
   const [socket, setSocket] = useState(null);
@@ -40,6 +38,7 @@ const RealTimeMonitoring = () => {
 
     // Real-time data events
     newSocket.on('network_data', (data) => {
+      console.log('Received network data:', data);
       setNetworkData(prev => {
         const newData = [data, ...prev].slice(0, 100); // Keep last 100 records
         return newData;
@@ -47,6 +46,7 @@ const RealTimeMonitoring = () => {
     });
 
     newSocket.on('security_alert', (alert) => {
+      console.log('Received security alert:', alert);
       setAlerts(prev => [alert, ...prev].slice(0, 50)); // Keep last 50 alerts
       message.error(`🚨 Security Alert: ${alert.message}`, 5);
     });
@@ -84,22 +84,28 @@ const RealTimeMonitoring = () => {
 
   const startStreaming = async () => {
     try {
+      console.log('Starting streaming...');
       const response = await axios.post('http://localhost:5000/streaming/start', {
         config: { interval: 1 }
       });
+      console.log('Streaming started response:', response.data);
       message.success('Real-time monitoring started');
       setIsStreaming(true);
     } catch (error) {
+      console.error('Failed to start streaming:', error);
       message.error('Failed to start streaming');
     }
   };
 
   const stopStreaming = async () => {
     try {
+      console.log('Stopping streaming...');
       const response = await axios.post('http://localhost:5000/streaming/stop');
+      console.log('Streaming stopped response:', response.data);
       message.success('Real-time monitoring stopped');
       setIsStreaming(false);
     } catch (error) {
+      console.error('Failed to stop streaming:', error);
       message.error('Failed to stop streaming');
     }
   };

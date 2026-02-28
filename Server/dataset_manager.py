@@ -20,16 +20,32 @@ class DatasetManager:
     def authenticate_kaggle(self, username, key):
         """Authenticate with Kaggle API"""
         try:
+            # Set environment variables for Kaggle API
             os.environ['KAGGLE_USERNAME'] = username
             os.environ['KAGGLE_KEY'] = key
             
-            # Test authentication
+            # Import and initialize Kaggle API
             api = self._get_api()
-            api.authenticate()
-            self.authenticated = True
-            return True
+            
+            # Test authentication by trying to get user info
+            try:
+                user_info = api.user_account()
+                print(f"Successfully authenticated as: {user_info.get('username', username)}")
+                self.authenticated = True
+                return True
+            except Exception as auth_error:
+                print(f"Kaggle authentication test failed: {str(auth_error)}")
+                # Try alternative authentication method
+                try:
+                    api.authenticate()
+                    self.authenticated = True
+                    return True
+                except Exception as alt_error:
+                    print(f"Alternative authentication failed: {str(alt_error)}")
+                    self.authenticated = False
+                    return False
+                    
         except Exception as e:
-            # Don't raise exception, just return False
             print(f"Kaggle authentication failed: {str(e)}")
             self.authenticated = False
             return False
@@ -94,38 +110,70 @@ class DatasetManager:
             raise Exception(f"Dataset download failed: {str(e)}")
     
     def get_popular_intrusion_datasets(self):
-        """Get popular intrusion detection datasets from Kaggle"""
-        popular_datasets = [
+        """Get popular intrusion detection datasets (with fallbacks)"""
+        # Fallback datasets that can be downloaded directly
+        fallback_datasets = [
             {
-                'ref': 'cicdataset/cicids2017',
-                'title': 'CICIDS2017',
-                'description': 'Canadian Institute for Cybersecurity Intrusion Detection System 2017 dataset',
-                'size': 'Large',
-                'features': ['Network traffic', 'DDoS attacks', 'Port scanning', 'Botnet traffic']
+                'ref': 'local/sample',
+                'title': 'Sample Intrusion Detection Dataset',
+                'description': 'A sample dataset for testing intrusion detection algorithms',
+                'size': '5MB',
+                'files': ['sample_intrusion.csv'],
+                'features': ['duration', 'protocol', 'service', 'src_bytes', 'dst_bytes'],
+                'download_url': None,  # Generate locally
+                'requires_auth': False
+            },
+            {
+                'ref': 'local/synthetic',
+                'title': 'Synthetic Network Traffic Dataset',
+                'description': 'Synthetically generated network traffic with attack patterns',
+                'size': '10MB',
+                'files': ['synthetic_network.csv'],
+                'features': ['src_ip', 'dst_ip', 'protocol', 'port', 'bytes'],
+                'download_url': None,  # Generate locally
+                'requires_auth': False
+            }
+        ]
+        
+        # Kaggle datasets (require authentication)
+        kaggle_datasets = [
+            {
+                'ref': 'cic/cicids2017',
+                'title': 'CICIDS2017 Dataset',
+                'description': 'Canadian Institute for Cybersecurity Intrusion Detection System 2017',
+                'size': '1.2GB',
+                'files': ['Monday-WorkingHours.pcap_ISCX.csv', 'Tuesday-WorkingHours.pcap_ISCX.csv'],
+                'features': ['Flow ID', 'Source IP', 'Destination IP', 'Protocol', 'Flow Duration'],
+                'download_url': None,
+                'requires_auth': True
             },
             {
                 'ref': 'hassan06/nslkdd',
-                'title': 'NSL-KDD',
-                'description': 'Network Security Laboratory-Knowledge Discovery Dataset',
-                'size': 'Medium',
-                'features': ['Network attacks', 'DoS', 'Probe', 'R2L', 'U2R attacks']
+                'title': 'NSL-KDD Dataset',
+                'description': 'Network Security Laboratory-Knowledge Discovery and Data Mining',
+                'size': '150MB',
+                'files': ['KDDTrain+.txt', 'KDDTest+.txt'],
+                'features': ['duration', 'protocol_type', 'service', 'flag', 'src_bytes'],
+                'download_url': None,
+                'requires_auth': True
             },
             {
-                'ref': 'sxhilton/unswnb15',
-                'title': 'UNSW-NB15',
-                'description': 'UNSW-NB15 dataset for network intrusion detection',
-                'size': 'Large',
-                'features': ['Modern attacks', 'Exploitation', 'Analysis', 'Worms', 'Shellcode']
-            },
-            {
-                'ref': 'mrwellsd/unswnb15',
-                'title': 'UNSW-NB15 Clean',
-                'description': 'Cleaned version of UNSW-NB15 dataset',
-                'size': 'Medium',
-                'features': ['Preprocessed', 'Labeled', 'Ready for ML']
+                'ref': 'mrwellsd/unsw-nb15',
+                'title': 'UNSW-NB15 Dataset',
+                'description': 'UNSW-NB15 network intrusion dataset created by the Australian Cyber Security Centre',
+                'size': '2.3GB',
+                'files': ['UNSW-NB15_1.csv', 'UNSW-NB15_2.csv', 'UNSW-NB15_3.csv', 'UNSW-NB15_4.csv'],
+                'features': ['srcip', 'sport', 'dstip', 'dsport', 'proto'],
+                'download_url': None,
+                'requires_auth': True
             }
         ]
-        return popular_datasets
+        
+        # Return fallback datasets if not authenticated, otherwise return all
+        if self.authenticated:
+            return kaggle_datasets + fallback_datasets
+        else:
+            return fallback_datasets
     
     def analyze_downloaded_dataset(self, csv_file):
         """Analyze a downloaded CSV file"""

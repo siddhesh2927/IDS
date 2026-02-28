@@ -10,6 +10,7 @@ import History from './pages/History';
 import Settings from './pages/Settings';
 import RealTimeMonitoring from './pages/RealTimeMonitoring';
 import DatasetManager from './pages/DatasetManager';
+import NetworkCapture from './pages/NetworkCapture';
 
 const { Content } = Layout;
 
@@ -25,10 +26,11 @@ function App() {
               <Route path="/upload" element={<DataUpload />} />
               <Route path="/training" element={<ModelTraining />} />
               <Route path="/detection" element={<ThreatDetection />} />
+              <Route path="/realtime" element={<RealTimeMonitoring />} />
+              <Route path="/capture" element={<NetworkCapture />} />
+              <Route path="/datasets" element={<DatasetManager />} />
               <Route path="/history" element={<History />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/realtime" element={<RealTimeMonitoring />} />
-              <Route path="/datasets" element={<DatasetManager />} />
             </Routes>
           </div>
         </Content>
