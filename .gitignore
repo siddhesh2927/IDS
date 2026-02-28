@@ -73,3 +73,7 @@ dist/
 # Cache
 .cache/
 *.cache
+node_modules/.cache/
+
+# React
+.eslintcache
