@@ -7,7 +7,9 @@ import {
   SecurityScanOutlined,
   HistoryOutlined,
   SettingOutlined,
-  SafetyOutlined
+  SafetyOutlined,
+  PlayCircleOutlined,
+  DatabaseOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -29,6 +31,11 @@ const Sidebar = () => {
       label: 'Dashboard',
     },
     {
+      key: '/datasets',
+      icon: <DatabaseOutlined />,
+      label: 'Datasets',
+    },
+    {
       key: '/upload',
       icon: <UploadOutlined />,
       label: 'Data Upload',
@@ -42,6 +49,11 @@ const Sidebar = () => {
       key: '/detection',
       icon: <SecurityScanOutlined />,
       label: 'Threat Detection',
+    },
+    {
+      key: '/realtime',
+      icon: <PlayCircleOutlined />,
+      label: 'Real-time Monitor',
     },
     {
       key: '/history',

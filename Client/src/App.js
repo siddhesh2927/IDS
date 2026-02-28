@@ -8,6 +8,8 @@ import ModelTraining from './pages/ModelTraining';
 import ThreatDetection from './pages/ThreatDetection';
 import History from './pages/History';
 import Settings from './pages/Settings';
+import RealTimeMonitoring from './pages/RealTimeMonitoring';
+import DatasetManager from './pages/DatasetManager';
 
 const { Content } = Layout;
 
@@ -25,6 +27,8 @@ function App() {
               <Route path="/detection" element={<ThreatDetection />} />
               <Route path="/history" element={<History />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/realtime" element={<RealTimeMonitoring />} />
+              <Route path="/datasets" element={<DatasetManager />} />
             </Routes>
           </div>
         </Content>

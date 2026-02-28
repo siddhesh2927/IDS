@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import pandas as pd
 import numpy as np
 import joblib
@@ -11,12 +12,15 @@ import sqlite3
 from data_preprocessor import DataPreprocessor
 from ml_models import MLModels
 from database import Database
+from dataset_manager import DatasetManager
+from realtime_processor import RealTimeProcessor
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configuration
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MODEL_FOLDER'] = 'models'
 
@@ -28,6 +32,8 @@ os.makedirs(app.config['MODEL_FOLDER'], exist_ok=True)
 db = Database()
 preprocessor = DataPreprocessor()
 ml_models = MLModels()
+dataset_manager = DatasetManager(app.config['UPLOAD_FOLDER'])
+realtime_processor = RealTimeProcessor(ml_models, preprocessor, socketio)
 
 @app.route('/')
 def index():
@@ -172,5 +178,168 @@ def get_system_stats():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Kaggle Dataset Management Endpoints
+@app.route('/kaggle/authenticate', methods=['POST'])
+def authenticate_kaggle():
+    """Authenticate with Kaggle API"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        key = data.get('key')
+        
+        if not username or not key:
+            return jsonify({"error": "Username and key required"}), 400
+        
+        success = dataset_manager.authenticate_kaggle(username, key)
+        if success:
+            return jsonify({"message": "Authentication successful"})
+        else:
+            return jsonify({"error": "Authentication failed. Please check your Kaggle credentials."}), 401
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/kaggle/datasets/popular', methods=['GET'])
+def get_popular_datasets():
+    """Get popular intrusion detection datasets"""
+    try:
+        datasets = dataset_manager.get_popular_intrusion_datasets()
+        return jsonify({"datasets": datasets})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/kaggle/datasets/search', methods=['POST'])
+def search_datasets():
+    """Search for datasets on Kaggle"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        max_results = data.get('max_results', 10)
+        
+        datasets = dataset_manager.search_datasets(query, max_results)
+        return jsonify({"datasets": datasets})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/kaggle/datasets/download', methods=['POST'])
+def download_dataset():
+    """Download dataset from Kaggle"""
+    try:
+        data = request.get_json()
+        dataset_ref = data.get('dataset_ref')
+        
+        if not dataset_ref:
+            return jsonify({"error": "Dataset reference required"}), 400
+        
+        result = dataset_manager.download_dataset(dataset_ref)
+        
+        # Analyze each CSV file
+        analyses = []
+        for csv_file in result['csv_files']:
+            analysis = dataset_manager.analyze_downloaded_dataset(csv_file)
+            analyses.append(analysis)
+        
+        return jsonify({
+            "message": "Dataset downloaded successfully",
+            "dataset_info": result,
+            "analyses": analyses
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/datasets/prepare', methods=['POST'])
+def prepare_dataset():
+    """Prepare dataset for training"""
+    try:
+        data = request.get_json()
+        csv_file = data.get('csv_file')
+        target_column = data.get('target_column')
+        
+        if not csv_file:
+            return jsonify({"error": "CSV file path required"}), 400
+        
+        result = dataset_manager.prepare_dataset_for_training(csv_file, target_column)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Real-time Streaming Endpoints
+@app.route('/streaming/start', methods=['POST'])
+def start_streaming():
+    """Start real-time network data streaming"""
+    try:
+        data = request.get_json()
+        config = data.get('config', {})
+        config.setdefault('interval', 1)  # Default 1 second interval
+        
+        result = realtime_processor.start_streaming(config)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/streaming/stop', methods=['POST'])
+def stop_streaming():
+    """Stop real-time streaming"""
+    try:
+        result = realtime_processor.stop_streaming()
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/streaming/status', methods=['GET'])
+def get_streaming_status():
+    """Get streaming status"""
+    try:
+        status = realtime_processor.get_streaming_status()
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/alerts', methods=['GET'])
+def get_alerts():
+    """Get alert history"""
+    try:
+        alerts = realtime_processor.get_alert_history()
+        return jsonify({"alerts": alerts})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/alerts/threshold', methods=['POST'])
+def set_alert_threshold():
+    """Set alert threshold"""
+    try:
+        data = request.get_json()
+        threshold = data.get('threshold', 0.7)
+        
+        result = realtime_processor.set_alert_threshold(threshold)
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# WebSocket Events
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    emit('connected', {'message': 'Connected to Intrusion Detection System'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection"""
+    print('Client disconnected')
+
+@socketio.on('get_status')
+def handle_get_status():
+    """Handle status request"""
+    status = realtime_processor.get_streaming_status()
+    emit('status_update', status)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
