@@ -72,6 +72,137 @@ class DatasetManager:
             raise Exception(f"Dataset search failed: {str(e)}")
     
     def download_dataset(self, dataset_ref, file_name=None):
+        """Download dataset from Kaggle or generate local dataset"""
+        if dataset_ref.startswith('local/'):
+            return self._generate_local_dataset(dataset_ref)
+        else:
+            return self._download_kaggle_dataset(dataset_ref, file_name)
+    
+    def _generate_local_dataset(self, dataset_ref):
+        """Generate local synthetic dataset"""
+        try:
+            dataset_name = dataset_ref.replace('local/', '')
+            dataset_folder = os.path.join(self.upload_folder, f'generated_{dataset_name}')
+            os.makedirs(dataset_folder, exist_ok=True)
+            
+            if dataset_name == 'sample':
+                csv_file = os.path.join(dataset_folder, 'sample_intrusion.csv')
+                self._generate_sample_dataset(csv_file)
+            elif dataset_name == 'synthetic':
+                csv_file = os.path.join(dataset_folder, 'synthetic_network.csv')
+                self._generate_synthetic_dataset(csv_file)
+            
+            return {
+                'dataset_name': f'generated_{dataset_name}',
+                'csv_files': [csv_file],
+                'dataset_folder': dataset_folder
+            }
+            
+        except Exception as e:
+            raise Exception(f"Local dataset generation failed: {str(e)}")
+    
+    def _generate_sample_dataset(self, csv_file):
+        """Generate sample intrusion detection dataset"""
+        import random
+        import numpy as np
+        
+        # Generate realistic network data
+        protocols = ['TCP', 'UDP', 'ICMP']
+        services = ['http', 'ftp', 'ssh', 'smtp', 'dns', 'telnet']
+        attack_types = ['normal', 'dos', 'probe', 'r2l', 'u2r']
+        
+        data = []
+        for i in range(1000):
+            is_attack = random.random() < 0.3  # 30% attacks
+            attack_type = random.choice(attack_types) if is_attack else 'normal'
+            
+            row = {
+                'duration': random.uniform(0, 100),
+                'protocol': random.choice(protocols),
+                'service': random.choice(services),
+                'src_bytes': random.randint(0, 10000) if attack_type == 'normal' else random.randint(1000, 50000),
+                'dst_bytes': random.randint(0, 10000),
+                'count': random.randint(1, 100),
+                'srv_count': random.randint(1, 50),
+                'serror_rate': random.uniform(0, 1) if attack_type in ['dos', 'probe'] else 0,
+                'srv_serror_rate': random.uniform(0, 1) if attack_type in ['dos', 'probe'] else 0,
+                'rerror_rate': random.uniform(0, 1) if attack_type in ['r2l', 'u2r'] else 0,
+                'srv_rerror_rate': random.uniform(0, 1) if attack_type in ['r2l', 'u2r'] else 0,
+                'same_srv_rate': random.uniform(0, 1),
+                'diff_srv_rate': random.uniform(0, 1),
+                'dst_host_count': random.randint(1, 255),
+                'dst_host_srv_count': random.randint(1, 100),
+                'dst_host_same_srv_rate': random.uniform(0, 1),
+                'dst_host_diff_srv_rate': random.uniform(0, 1),
+                'dst_host_serror_rate': random.uniform(0, 1) if attack_type in ['dos', 'probe'] else 0,
+                'dst_host_srv_serror_rate': random.uniform(0, 1) if attack_type in ['dos', 'probe'] else 0,
+                'label': attack_type
+            }
+            data.append(row)
+        
+        df = pd.DataFrame(data)
+        df.to_csv(csv_file, index=False)
+        print(f"Generated sample dataset with {len(data)} records")
+    
+    def _generate_synthetic_dataset(self, csv_file):
+        """Generate synthetic network traffic dataset"""
+        import random
+        import numpy as np
+        
+        # Generate more realistic network traffic
+        data = []
+        for i in range(2000):
+            # Simulate different traffic patterns
+            traffic_type = random.choices(
+                ['normal', 'port_scan', 'dos_attack', 'data_exfiltration'],
+                weights=[0.7, 0.1, 0.15, 0.05]
+            )[0]
+            
+            if traffic_type == 'normal':
+                src_ip = f"192.168.1.{random.randint(1, 254)}"
+                dst_ip = f"10.0.0.{random.randint(1, 254)}"
+                protocol = random.choice(['TCP', 'UDP'])
+                port = random.choice([80, 443, 22, 53, 25])
+                bytes_size = random.randint(64, 1500)
+            elif traffic_type == 'port_scan':
+                src_ip = f"192.168.1.{random.randint(1, 254)}"
+                dst_ip = f"10.0.0.{random.randint(1, 254)}"
+                protocol = 'TCP'
+                port = random.randint(1, 1024)
+                bytes_size = random.randint(40, 100)
+            elif traffic_type == 'dos_attack':
+                src_ip = f"192.168.1.{random.randint(1, 254)}"
+                dst_ip = f"10.0.0.{random.randint(1, 254)}"
+                protocol = random.choice(['TCP', 'UDP'])
+                port = random.choice([80, 443])
+                bytes_size = random.randint(1000, 8000)
+            else:  # data_exfiltration
+                src_ip = f"10.0.0.{random.randint(1, 254)}"
+                dst_ip = f"192.168.1.{random.randint(1, 254)}"
+                protocol = 'TCP'
+                port = random.choice([22, 443, 993])
+                bytes_size = random.randint(5000, 10000)
+            
+            row = {
+                'src_ip': src_ip,
+                'dst_ip': dst_ip,
+                'protocol': protocol,
+                'port': port,
+                'bytes': bytes_size,
+                'timestamp': random.uniform(0, 86400),  # Time of day in seconds
+                'duration': random.uniform(0.001, 1.0),
+                'packets': random.randint(1, 100),
+                'flags': random.choice(['SYN', 'ACK', 'FIN', 'RST', 'PSH', 'URG']),
+                'traffic_type': traffic_type,
+                'is_attack': 0 if traffic_type == 'normal' else 1
+            }
+            data.append(row)
+        
+        df = pd.DataFrame(data)
+        df.to_csv(csv_file, index=False)
+        print(f"Generated synthetic dataset with {len(data)} records")
+    
+    def _download_kaggle_dataset(self, dataset_ref, file_name=None):
         """Download dataset from Kaggle"""
         if not self.authenticated:
             raise Exception("Please authenticate with Kaggle first")
