@@ -16,8 +16,8 @@ function App() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sidebar />
       <Layout className="site-layout">
-        <Content style={{ margin: '0 16px' }}>
-          <div className="site-layout-background" style={{ padding: 24, minHeight: 360 }}>
+        <Content className="ant-layout-content">
+          <div className="site-layout-background">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/upload" element={<DataUpload />} />
